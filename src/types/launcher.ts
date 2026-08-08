@@ -3,5 +3,5 @@ export type LauncherEntry = {
   name: string
   exePath: string
   iconPath?: string
-  lastLaunchedAt?: string
+  lastLaunchedAt?: number
 }

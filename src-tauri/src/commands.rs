@@ -1,10 +1,9 @@
-use crate::models::LauncherEntry;
+use crate::models::{AppSettings, LauncherEntry};
 use crate::storage;
 use std::path::{Path, PathBuf};
 use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 use uuid::Uuid;
-use windows_icons::get_icon_by_path;
 
 fn launchers_file_path(app: &tauri::AppHandle) -> PathBuf {
     let dir = app
@@ -16,6 +15,17 @@ fn launchers_file_path(app: &tauri::AppHandle) -> PathBuf {
     dir.join("launchers.json")
 }
 
+fn settings_file_path(app: &tauri::AppHandle) -> PathBuf {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .expect("failed to resolve app data directory");
+
+    std::fs::create_dir_all(&dir).expect("failed to create app data directory");
+    dir.join("settings.json")
+}
+
+#[cfg(target_os = "windows")]
 fn icons_dir_path(app: &tauri::AppHandle) -> PathBuf {
     let dir = app
         .path()
@@ -29,11 +39,18 @@ fn icons_dir_path(app: &tauri::AppHandle) -> PathBuf {
 
 // Extrait l'icône embarquée dans l'exécutable et la sauvegarde en PNG.
 // Best-effort : une icône manquante ne doit jamais empêcher d'ajouter/modifier un launcher.
+// windows-icons lit les ressources PE d'un .exe : uniquement disponible sous Windows.
+#[cfg(target_os = "windows")]
 fn save_icon(app: &tauri::AppHandle, id: &str, exe_path: &str) -> Option<String> {
-    let icon = get_icon_by_path(exe_path).ok()?;
+    let icon = windows_icons::get_icon_by_path(exe_path).ok()?;
     let file_path = icons_dir_path(app).join(format!("{id}.png"));
     icon.save(&file_path).ok()?;
     Some(file_path.to_string_lossy().into_owned())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn save_icon(_app: &tauri::AppHandle, _id: &str, _exe_path: &str) -> Option<String> {
+    None
 }
 
 fn validate_exe_path(exe_path: &str) -> Result<(), String> {
@@ -45,6 +62,12 @@ fn validate_exe_path(exe_path: &str) -> Result<(), String> {
             exe_path
         ))
     }
+}
+
+/// Lit les préférences persistées. Utilisé aussi bien par la commande `get_settings`
+/// que par le handler de fermeture de fenêtre dans `lib.rs` (pas d'IPC là-bas).
+pub fn current_settings(app: &tauri::AppHandle) -> AppSettings {
+    storage::load_settings(&settings_file_path(app))
 }
 
 #[tauri::command]
@@ -150,11 +173,42 @@ pub async fn pick_executable_file(app: tauri::AppHandle) -> Option<String> {
 }
 
 #[tauri::command]
-pub fn launch_app(exe_path: String) -> Result<(), String> {
+pub fn launch_app(app: tauri::AppHandle, id: String, exe_path: String) -> Result<(), String> {
     // spawn() démarre le programme sans attendre qu'il se termine,
     // sinon notre appli resterait bloquée tant que le launcher est ouvert.
-    std::process::Command::new(exe_path)
+    std::process::Command::new(&exe_path)
         .spawn()
         .map_err(|e| e.to_string())?;
+
+    // Best-effort : ne jamais faire échouer le lancement pour un problème d'horodatage.
+    let file_path = launchers_file_path(&app);
+    let mut launchers = storage::load_launchers(&file_path);
+    if let Some(launcher) = launchers.iter_mut().find(|launcher| launcher.id == id) {
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| duration.as_millis() as i64)
+            .unwrap_or(0);
+        launcher.last_launched_at = Some(now_ms);
+        let _ = storage::save_launchers(&file_path, &launchers);
+    }
+
     Ok(())
+}
+
+#[tauri::command]
+pub fn get_settings(app: tauri::AppHandle) -> AppSettings {
+    current_settings(&app)
+}
+
+#[tauri::command]
+pub fn set_close_to_tray(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    let file_path = settings_file_path(&app);
+    let mut settings = storage::load_settings(&file_path);
+    settings.close_to_tray = enabled;
+    storage::save_settings(&file_path, &settings)
+}
+
+#[tauri::command]
+pub fn quit_app(app: tauri::AppHandle) {
+    app.exit(0);
 }

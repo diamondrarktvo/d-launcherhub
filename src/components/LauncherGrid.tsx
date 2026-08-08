@@ -22,7 +22,7 @@ type ViewMode = "grid" | "list"
 type LauncherGridProps = {
   launchers: LauncherEntry[]
   viewMode: ViewMode
-  isSearching: boolean
+  reorderEnabled: boolean
   searchQuery: string
   onClearSearch: () => void
   onLaunch: (launcher: LauncherEntry) => void
@@ -35,7 +35,7 @@ type LauncherGridProps = {
 export function LauncherGrid({
   launchers,
   viewMode,
-  isSearching,
+  reorderEnabled,
   searchQuery,
   onClearSearch,
   onLaunch,
@@ -112,7 +112,7 @@ export function LauncherGrid({
       </button>
     )
 
-  if (isSearching) {
+  if (!reorderEnabled) {
     return (
       <div className={containerClassName}>
         {tiles}

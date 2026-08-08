@@ -14,25 +14,35 @@ import { EmptyState } from "@/components/EmptyState";
 import { LauncherGrid } from "@/components/LauncherGrid";
 import { LauncherFormDialog } from "@/components/LauncherFormDialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { SettingsDialog } from "@/components/SettingsDialog";
+import { SplashScreen } from "@/components/SplashScreen";
 
 type ViewMode = "grid" | "list";
+type SortMode = "manual" | "recent";
 
 const VIEW_MODE_STORAGE_KEY = "the-launcher:view-mode";
+const SORT_MODE_STORAGE_KEY = "the-launcher:sort-mode";
 
 function toErrorMessage(err: unknown, fallback: string) {
   return typeof err === "string" ? err : fallback;
 }
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true);
   const [launchers, setLaunchers] = useState<LauncherEntry[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLauncher, setEditingLauncher] = useState<LauncherEntry | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<LauncherEntry | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const stored = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
     return stored === "list" ? "list" : "grid";
+  });
+  const [sortMode, setSortMode] = useState<SortMode>(() => {
+    const stored = localStorage.getItem(SORT_MODE_STORAGE_KEY);
+    return stored === "recent" ? "recent" : "manual";
   });
 
   useEffect(() => {
@@ -43,11 +53,22 @@ function App() {
     localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
   }, [viewMode]);
 
-  const filteredLaunchers = useMemo(() => {
+  useEffect(() => {
+    localStorage.setItem(SORT_MODE_STORAGE_KEY, sortMode);
+  }, [sortMode]);
+
+  const isSearching = searchQuery.trim().length > 0;
+
+  const visibleLaunchers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return launchers;
-    return launchers.filter((launcher) => launcher.name.toLowerCase().includes(query));
-  }, [launchers, searchQuery]);
+    const filtered = query
+      ? launchers.filter((launcher) => launcher.name.toLowerCase().includes(query))
+      : launchers;
+
+    if (sortMode !== "recent") return filtered;
+
+    return [...filtered].sort((a, b) => (b.lastLaunchedAt ?? 0) - (a.lastLaunchedAt ?? 0));
+  }, [launchers, searchQuery, sortMode]);
 
   function openAddForm() {
     setEditingLauncher(null);
@@ -85,7 +106,13 @@ function App() {
 
   async function handleLaunch(launcher: LauncherEntry) {
     try {
-      await launchApp(launcher.exePath);
+      await launchApp(launcher.id, launcher.exePath);
+      const launchedAt = Date.now();
+      setLaunchers((current) =>
+        current.map((entry) =>
+          entry.id === launcher.id ? { ...entry, lastLaunchedAt: launchedAt } : entry,
+        ),
+      );
     } catch (err) {
       setError(toErrorMessage(err, "Failed to launch application."));
     }
@@ -109,12 +136,17 @@ function App() {
 
   return (
     <main className="min-h-screen p-8">
+      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+
       <Header
         count={launchers.length}
         search={searchQuery}
         onSearchChange={setSearchQuery}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        sortMode={sortMode}
+        onSortModeChange={setSortMode}
+        onSettingsClick={() => setIsSettingsOpen(true)}
       />
 
       {error && (
@@ -134,9 +166,9 @@ function App() {
         <EmptyState onAddClick={openAddForm} />
       ) : (
         <LauncherGrid
-          launchers={filteredLaunchers}
+          launchers={visibleLaunchers}
           viewMode={viewMode}
-          isSearching={searchQuery.trim().length > 0}
+          reorderEnabled={!isSearching && sortMode === "manual"}
           searchQuery={searchQuery}
           onClearSearch={() => setSearchQuery("")}
           onLaunch={handleLaunch}
@@ -166,6 +198,8 @@ function App() {
         confirmLabel="Supprimer"
         onConfirm={handleConfirmRemove}
       />
+
+      <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
     </main>
   );
 }
