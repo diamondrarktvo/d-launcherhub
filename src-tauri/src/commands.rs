@@ -54,12 +54,17 @@ pub fn remove_launcher(app: tauri::AppHandle, id: String) -> Result<(), String> 
 }
 
 #[tauri::command]
-pub fn pick_executable_file(app: tauri::AppHandle) -> Option<String> {
+pub async fn pick_executable_file(app: tauri::AppHandle) -> Option<String> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
     app.dialog()
         .file()
         .add_filter("Executable", &["exe"])
-        .blocking_pick_file()
-        .map(|path| path.to_string())
+        .pick_file(move |file_path| {
+            let _ = tx.send(file_path);
+        });
+
+    rx.await.ok().flatten().map(|path| path.to_string())
 }
 
 #[tauri::command]
