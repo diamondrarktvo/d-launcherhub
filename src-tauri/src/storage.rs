@@ -41,3 +41,82 @@ pub fn load_settings(file_path: &Path) -> AppSettings {
 pub fn save_settings(file_path: &Path, settings: &AppSettings) -> Result<(), String> {
     save_json(file_path, settings)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct TempFile(PathBuf);
+
+    impl TempFile {
+        fn new(name: &str) -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "the-launcher-test-{name}-{}-{}.json",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ));
+            Self(path)
+        }
+    }
+
+    impl Drop for TempFile {
+        fn drop(&mut self) {
+            let _ = fs::remove_file(&self.0);
+            let _ = fs::remove_file(format!("{}.bak", self.0.display()));
+        }
+    }
+
+    #[test]
+    fn load_launchers_defaults_to_empty_when_file_missing() {
+        let file = TempFile::new("missing");
+        assert_eq!(load_launchers(&file.0), Vec::new());
+    }
+
+    #[test]
+    fn save_then_load_launchers_round_trips() {
+        let file = TempFile::new("roundtrip");
+        let launchers = vec![LauncherEntry {
+            id: "1".to_string(),
+            name: "Steam".to_string(),
+            exe_path: "C:\\steam.exe".to_string(),
+            icon_path: None,
+            last_launched_at: Some(42),
+        }];
+
+        save_launchers(&file.0, &launchers).unwrap();
+        assert_eq!(load_launchers(&file.0), launchers);
+    }
+
+    #[test]
+    fn load_launchers_backs_up_and_resets_corrupted_file() {
+        let file = TempFile::new("corrupt");
+        fs::write(&file.0, "not valid json").unwrap();
+
+        let loaded = load_launchers(&file.0);
+
+        assert_eq!(loaded, Vec::new());
+        assert!(!file.0.exists());
+        let backup_path = PathBuf::from(format!("{}.bak", file.0.display()));
+        assert_eq!(fs::read_to_string(backup_path).unwrap(), "not valid json");
+    }
+
+    #[test]
+    fn load_settings_defaults_when_file_missing() {
+        let file = TempFile::new("settings-missing");
+        assert!(load_settings(&file.0).close_to_tray);
+    }
+
+    #[test]
+    fn save_then_load_settings_round_trips() {
+        let file = TempFile::new("settings-roundtrip");
+        let settings = AppSettings {
+            close_to_tray: false,
+        };
+
+        save_settings(&file.0, &settings).unwrap();
+        assert!(!load_settings(&file.0).close_to_tray);
+    }
+}

@@ -58,14 +58,41 @@ The installer/executable will be generated under `src-tauri/target/release/bundl
 
 ## Releasing a New Version
 
-Version bumps and tags are handled by a helper script:
+Releases are cut with the `pnpm tag` script, then published by CI once the tag is pushed.
+
+### 1. Make sure your working tree is clean
+
+The script refuses to run if you have uncommitted changes — commit or stash first.
+
+### 2. Bump the version and create the tag
 
 ```bash
-pnpm tag patch   # or: minor, major, or an explicit X.Y.Z
-git push && git push origin <the-new-tag>
+pnpm tag patch   # bump X.Y.(Z+1)
+pnpm tag minor   # bump X.(Y+1).0
+pnpm tag major   # bump (X+1).0.0
+pnpm tag 1.4.0   # or set an explicit version
 ```
 
-This updates the version in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`, commits the change, and creates a git tag. Pushing the tag triggers the [Build Windows](.github/workflows/build-windows.yml) workflow, which builds the app and publishes the installer as a GitHub Release.
+This runs [scripts/tag-release.mjs](scripts/tag-release.mjs), which:
+
+1. Reads the current version from `package.json`
+2. Writes the new version to `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`
+3. Commits the change with message `chore: bump version to vX.Y.Z`
+4. Creates a local git tag `vX.Y.Z`
+
+Nothing is pushed yet at this point.
+
+### 3. Push the commit and the tag
+
+```bash
+git push && git push origin vX.Y.Z
+```
+
+(replace `vX.Y.Z` with the tag printed by the script in step 2)
+
+### 4. CI takes over
+
+Pushing a `v*` tag triggers the [Build Windows](.github/workflows/build-windows.yml) workflow, which builds the app with `pnpm tauri build` and publishes the `.msi`/`.exe` installers as a GitHub Release with auto-generated release notes. You can follow progress under the repo's **Actions** tab.
 
 ## Project Structure
 

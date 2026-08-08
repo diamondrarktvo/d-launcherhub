@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { FolderOpen } from "lucide-react"
 import {
   Dialog,
@@ -27,19 +27,30 @@ export function LauncherFormDialog({
   launcher,
   onSubmit,
 }: LauncherFormDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        {/* Radix unmounts DialogContent while closed, so LauncherForm remounts fresh
+            every time the dialog opens and always starts from the current `launcher` —
+            no reset effect needed. */}
+        <LauncherForm launcher={launcher} onOpenChange={onOpenChange} onSubmit={onSubmit} />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+type LauncherFormProps = {
+  launcher?: LauncherEntry | null
+  onOpenChange: (open: boolean) => void
+  onSubmit: (name: string, exePath: string) => Promise<void>
+}
+
+function LauncherForm({ launcher, onOpenChange, onSubmit }: LauncherFormProps) {
   const isEditing = Boolean(launcher)
-  const [name, setName] = useState("")
-  const [exePath, setExePath] = useState("")
+  const [name, setName] = useState(launcher?.name ?? "")
+  const [exePath, setExePath] = useState(launcher?.exePath ?? "")
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  useEffect(() => {
-    if (open) {
-      setName(launcher?.name ?? "")
-      setExePath(launcher?.exePath ?? "")
-      setError(null)
-    }
-  }, [open, launcher])
 
   async function handleBrowse() {
     const picked = await pickExecutableFile()
@@ -64,56 +75,54 @@ export function LauncherFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{isEditing ? "Modifier le launcher" : "Ajouter un launcher"}</DialogTitle>
-          <DialogDescription>
-            {isEditing
-              ? "Mets à jour son nom ou son exécutable."
-              : "Donne-lui un nom et indique son exécutable."}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <DialogHeader>
+        <DialogTitle>{isEditing ? "Modifier le launcher" : "Ajouter un launcher"}</DialogTitle>
+        <DialogDescription>
+          {isEditing
+            ? "Mets à jour son nom ou son exécutable."
+            : "Donne-lui un nom et indique son exécutable."}
+        </DialogDescription>
+      </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="launcher-name">Nom</Label>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="launcher-name">Nom</Label>
+          <Input
+            id="launcher-name"
+            placeholder="Steam"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoFocus
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="launcher-exe">Exécutable</Label>
+          <div className="flex gap-2">
             <Input
-              id="launcher-name"
-              placeholder="Steam"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoFocus
+              id="launcher-exe"
+              placeholder="C:\...\steam.exe"
+              value={exePath}
+              onChange={(e) => setExePath(e.target.value)}
             />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="launcher-exe">Exécutable</Label>
-            <div className="flex gap-2">
-              <Input
-                id="launcher-exe"
-                placeholder="C:\...\steam.exe"
-                value={exePath}
-                onChange={(e) => setExePath(e.target.value)}
-              />
-              <Button type="button" variant="outline" size="icon" onClick={handleBrowse}>
-                <FolderOpen className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {error && <p className="text-sm text-destructive">{error}</p>}
-
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Annuler
+            <Button type="button" variant="outline" size="icon" onClick={handleBrowse}>
+              <FolderOpen className="h-4 w-4" />
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Enregistrement..." : isEditing ? "Enregistrer" : "Ajouter"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </div>
+        </div>
+
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+            Annuler
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Enregistrement..." : isEditing ? "Enregistrer" : "Ajouter"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
   )
 }

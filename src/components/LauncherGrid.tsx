@@ -14,10 +14,9 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable"
 import type { LauncherEntry } from "@/types/launcher"
+import type { ViewMode } from "@/types/view"
 import { LauncherTile } from "@/components/LauncherTile"
 import { Button } from "@/components/ui/button"
-
-type ViewMode = "grid" | "list"
 
 type LauncherGridProps = {
   launchers: LauncherEntry[]

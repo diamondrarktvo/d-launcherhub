@@ -5,24 +5,22 @@ use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 use uuid::Uuid;
 
-fn launchers_file_path(app: &tauri::AppHandle) -> PathBuf {
+fn app_data_file_path(app: &tauri::AppHandle, file_name: &str) -> PathBuf {
     let dir = app
         .path()
         .app_data_dir()
         .expect("failed to resolve app data directory");
 
     std::fs::create_dir_all(&dir).expect("failed to create app data directory");
-    dir.join("launchers.json")
+    dir.join(file_name)
+}
+
+fn launchers_file_path(app: &tauri::AppHandle) -> PathBuf {
+    app_data_file_path(app, "launchers.json")
 }
 
 fn settings_file_path(app: &tauri::AppHandle) -> PathBuf {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .expect("failed to resolve app data directory");
-
-    std::fs::create_dir_all(&dir).expect("failed to create app data directory");
-    dir.join("settings.json")
+    app_data_file_path(app, "settings.json")
 }
 
 #[cfg(target_os = "windows")]
@@ -141,6 +139,12 @@ pub fn remove_launcher(app: tauri::AppHandle, id: String) -> Result<(), String> 
     let file_path = launchers_file_path(&app);
     let mut launchers = storage::load_launchers(&file_path);
 
+    if let Some(launcher) = launchers.iter().find(|launcher| launcher.id == id) {
+        if let Some(icon) = &launcher.icon_path {
+            let _ = std::fs::remove_file(icon);
+        }
+    }
+
     launchers.retain(|launcher| launcher.id != id);
     storage::save_launchers(&file_path, &launchers)
 }
@@ -173,24 +177,32 @@ pub async fn pick_executable_file(app: tauri::AppHandle) -> Option<String> {
 }
 
 #[tauri::command]
-pub fn launch_app(app: tauri::AppHandle, id: String, exe_path: String) -> Result<(), String> {
+pub fn launch_app(app: tauri::AppHandle, id: String) -> Result<(), String> {
+    let file_path = launchers_file_path(&app);
+    let mut launchers = storage::load_launchers(&file_path);
+
+    // On résout exe_path depuis le storage plutôt que de faire confiance à une valeur
+    // envoyée par le frontend : seuls les chemins déjà enregistrés via add/update_launcher
+    // (et validés par validate_exe_path) peuvent être exécutés.
+    let launcher = launchers
+        .iter_mut()
+        .find(|launcher| launcher.id == id)
+        .ok_or_else(|| "Launcher introuvable.".to_string())?;
+
     // spawn() démarre le programme sans attendre qu'il se termine,
     // sinon notre appli resterait bloquée tant que le launcher est ouvert.
-    std::process::Command::new(&exe_path)
+    std::process::Command::new(&launcher.exe_path)
         .spawn()
         .map_err(|e| e.to_string())?;
 
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as i64)
+        .unwrap_or(0);
+    launcher.last_launched_at = Some(now_ms);
+
     // Best-effort : ne jamais faire échouer le lancement pour un problème d'horodatage.
-    let file_path = launchers_file_path(&app);
-    let mut launchers = storage::load_launchers(&file_path);
-    if let Some(launcher) = launchers.iter_mut().find(|launcher| launcher.id == id) {
-        let now_ms = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|duration| duration.as_millis() as i64)
-            .unwrap_or(0);
-        launcher.last_launched_at = Some(now_ms);
-        let _ = storage::save_launchers(&file_path, &launchers);
-    }
+    let _ = storage::save_launchers(&file_path, &launchers);
 
     Ok(())
 }

@@ -21,8 +21,8 @@ export function reorderLaunchers(ids: string[]) {
   return invoke<void>('reorder_launchers', { ids })
 }
 
-export function launchApp(id: string, exePath: string) {
-  return invoke<void>('launch_app', { id, exePath })
+export function launchApp(id: string) {
+  return invoke<void>('launch_app', { id })
 }
 
 export function pickExecutableFile() {

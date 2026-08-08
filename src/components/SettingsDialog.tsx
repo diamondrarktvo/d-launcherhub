@@ -25,21 +25,30 @@ type SettingsDialogProps = {
 }
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        {/* Radix unmounts DialogContent while closed, so SettingsForm remounts fresh
+            (and refetches) every time the dialog opens — no manual reset needed. */}
+        <SettingsForm />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function SettingsForm() {
   const [closeToTray, setCloseToTrayState] = useState(true)
   const [autostart, setAutostartState] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (!open) return
-
-    setIsLoading(true)
     Promise.all([getSettings(), getAutostartEnabled()])
       .then(([settings, autostartEnabled]) => {
         setCloseToTrayState(settings.closeToTray)
         setAutostartState(autostartEnabled)
       })
       .finally(() => setIsLoading(false))
-  }, [open])
+  }, [])
 
   async function handleCloseToTrayChange(checked: boolean) {
     setCloseToTrayState(checked)
@@ -52,48 +61,46 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Paramètres</DialogTitle>
-          <DialogDescription>Comportement de l'application.</DialogDescription>
-        </DialogHeader>
+    <>
+      <DialogHeader>
+        <DialogTitle>Paramètres</DialogTitle>
+        <DialogDescription>Comportement de l'application.</DialogDescription>
+      </DialogHeader>
 
-        <div className="flex flex-col divide-y divide-border">
-          <ToggleRow
-            label="Lancer au démarrage de Windows"
-            description="Ouvre The Launcher automatiquement à l'ouverture de session."
-            checked={autostart}
-            onChange={handleAutostartChange}
-            disabled={isLoading}
-          />
-          <ToggleRow
-            label="Réduire dans la zone de notification"
-            description="En fermant la fenêtre, l'app continue de tourner en arrière-plan."
-            checked={closeToTray}
-            onChange={handleCloseToTrayChange}
-            disabled={isLoading}
-          />
-          <div className="flex items-center justify-between gap-4 py-3">
-            <div>
-              <p className="text-sm font-medium">Raccourci global</p>
-              <p className="text-xs text-muted-foreground">
-                Affiche la fenêtre depuis n'importe où.
-              </p>
-            </div>
-            <kbd className="shrink-0 rounded-md border border-border bg-secondary px-2 py-1 text-xs font-medium">
-              {GLOBAL_SHORTCUT_LABEL}
-            </kbd>
+      <div className="flex flex-col divide-y divide-border">
+        <ToggleRow
+          label="Lancer au démarrage de Windows"
+          description="Ouvre The Launcher automatiquement à l'ouverture de session."
+          checked={autostart}
+          onChange={handleAutostartChange}
+          disabled={isLoading}
+        />
+        <ToggleRow
+          label="Réduire dans la zone de notification"
+          description="En fermant la fenêtre, l'app continue de tourner en arrière-plan."
+          checked={closeToTray}
+          onChange={handleCloseToTrayChange}
+          disabled={isLoading}
+        />
+        <div className="flex items-center justify-between gap-4 py-3">
+          <div>
+            <p className="text-sm font-medium">Raccourci global</p>
+            <p className="text-xs text-muted-foreground">
+              Affiche la fenêtre depuis n'importe où.
+            </p>
           </div>
+          <kbd className="shrink-0 rounded-md border border-border bg-secondary px-2 py-1 text-xs font-medium">
+            {GLOBAL_SHORTCUT_LABEL}
+          </kbd>
         </div>
+      </div>
 
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => quitApp()}>
-            Quitter The Launcher
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={() => quitApp()}>
+          Quitter The Launcher
+        </Button>
+      </DialogFooter>
+    </>
   )
 }
 

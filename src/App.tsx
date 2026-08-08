@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import type { LauncherEntry } from "@/types/launcher";
+import type { SortMode, ViewMode } from "@/types/view";
 import {
   listLaunchers,
   addLauncher,
@@ -16,12 +17,19 @@ import { LauncherFormDialog } from "@/components/LauncherFormDialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { SplashScreen } from "@/components/SplashScreen";
-
-type ViewMode = "grid" | "list";
-type SortMode = "manual" | "recent";
+import { useLocalStorageState } from "@/lib/use-local-storage-state";
+import { filterAndSortLaunchers } from "@/lib/launchers";
 
 const VIEW_MODE_STORAGE_KEY = "the-launcher:view-mode";
 const SORT_MODE_STORAGE_KEY = "the-launcher:sort-mode";
+
+function isViewMode(value: string): value is ViewMode {
+  return value === "grid" || value === "list";
+}
+
+function isSortMode(value: string): value is SortMode {
+  return value === "manual" || value === "recent";
+}
 
 function toErrorMessage(err: unknown, fallback: string) {
   return typeof err === "string" ? err : fallback;
@@ -36,39 +44,27 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    const stored = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
-    return stored === "list" ? "list" : "grid";
-  });
-  const [sortMode, setSortMode] = useState<SortMode>(() => {
-    const stored = localStorage.getItem(SORT_MODE_STORAGE_KEY);
-    return stored === "recent" ? "recent" : "manual";
-  });
+  const [viewMode, setViewMode] = useLocalStorageState<ViewMode>(
+    VIEW_MODE_STORAGE_KEY,
+    "grid",
+    isViewMode,
+  );
+  const [sortMode, setSortMode] = useLocalStorageState<SortMode>(
+    SORT_MODE_STORAGE_KEY,
+    "manual",
+    isSortMode,
+  );
 
   useEffect(() => {
     listLaunchers().then(setLaunchers);
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
-  }, [viewMode]);
-
-  useEffect(() => {
-    localStorage.setItem(SORT_MODE_STORAGE_KEY, sortMode);
-  }, [sortMode]);
-
   const isSearching = searchQuery.trim().length > 0;
 
-  const visibleLaunchers = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    const filtered = query
-      ? launchers.filter((launcher) => launcher.name.toLowerCase().includes(query))
-      : launchers;
-
-    if (sortMode !== "recent") return filtered;
-
-    return [...filtered].sort((a, b) => (b.lastLaunchedAt ?? 0) - (a.lastLaunchedAt ?? 0));
-  }, [launchers, searchQuery, sortMode]);
+  const visibleLaunchers = useMemo(
+    () => filterAndSortLaunchers(launchers, searchQuery, sortMode),
+    [launchers, searchQuery, sortMode],
+  );
 
   function openAddForm() {
     setEditingLauncher(null);
@@ -106,7 +102,7 @@ function App() {
 
   async function handleLaunch(launcher: LauncherEntry) {
     try {
-      await launchApp(launcher.id, launcher.exePath);
+      await launchApp(launcher.id);
       const launchedAt = Date.now();
       setLaunchers((current) =>
         current.map((entry) =>

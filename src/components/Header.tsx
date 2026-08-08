@@ -2,9 +2,7 @@ import { ArrowUpDown, Clock, LayoutGrid, List, Search, Settings } from "lucide-r
 import { Input } from "@/components/ui/input"
 import { RocketLogo } from "@/components/RocketLogo"
 import { cn } from "@/lib/utils"
-
-type ViewMode = "grid" | "list"
-type SortMode = "manual" | "recent"
+import type { SortMode, ViewMode } from "@/types/view"
 
 type HeaderProps = {
   count: number
