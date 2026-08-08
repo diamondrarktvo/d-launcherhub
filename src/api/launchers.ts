@@ -5,12 +5,20 @@ export function listLaunchers() {
   return invoke<LauncherEntry[]>('list_launchers')
 }
 
-export function addLauncher(name: string, exePath: string, iconPath?: string) {
-  return invoke<LauncherEntry>('add_launcher', { name, exePath, iconPath })
+export function addLauncher(name: string, exePath: string) {
+  return invoke<LauncherEntry>('add_launcher', { name, exePath })
+}
+
+export function updateLauncher(id: string, name: string, exePath: string) {
+  return invoke<LauncherEntry>('update_launcher', { id, name, exePath })
 }
 
 export function removeLauncher(id: string) {
   return invoke<void>('remove_launcher', { id })
+}
+
+export function reorderLaunchers(ids: string[]) {
+  return invoke<void>('reorder_launchers', { ids })
 }
 
 export function launchApp(exePath: string) {

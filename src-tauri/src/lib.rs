@@ -10,7 +10,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::list_launchers,
             commands::add_launcher,
+            commands::update_launcher,
             commands::remove_launcher,
+            commands::reorder_launchers,
             commands::launch_app,
             commands::pick_executable_file,
         ])

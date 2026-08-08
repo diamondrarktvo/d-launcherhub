@@ -4,11 +4,14 @@ import type { LauncherEntry } from "@/types/launcher";
 import {
   listLaunchers,
   addLauncher,
+  updateLauncher,
   removeLauncher,
+  reorderLaunchers,
   launchApp,
 } from "@/api/launchers";
 import { LauncherGrid } from "@/components/LauncherGrid";
-import { AddLauncherForm } from "@/components/AddLauncherForm";
+import { LauncherFormDialog } from "@/components/LauncherFormDialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 function toErrorMessage(err: unknown, fallback: string) {
   return typeof err === "string" ? err : fallback;
@@ -17,23 +20,43 @@ function toErrorMessage(err: unknown, fallback: string) {
 function App() {
   const [launchers, setLaunchers] = useState<LauncherEntry[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingLauncher, setEditingLauncher] = useState<LauncherEntry | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState<LauncherEntry | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     listLaunchers().then(setLaunchers);
   }, []);
 
-  async function handleAdd(name: string, exePath: string) {
-    const created = await addLauncher(name, exePath);
-    setLaunchers((current) => [...current, created]);
+  function openAddForm() {
+    setEditingLauncher(null);
+    setIsFormOpen(true);
   }
 
-  async function handleRemove(launcher: LauncherEntry) {
+  function openEditForm(launcher: LauncherEntry) {
+    setEditingLauncher(launcher);
+    setIsFormOpen(true);
+  }
+
+  async function handleFormSubmit(name: string, exePath: string) {
+    if (editingLauncher) {
+      const updated = await updateLauncher(editingLauncher.id, name, exePath);
+      setLaunchers((current) =>
+        current.map((entry) => (entry.id === updated.id ? updated : entry)),
+      );
+    } else {
+      const created = await addLauncher(name, exePath);
+      setLaunchers((current) => [...current, created]);
+    }
+  }
+
+  async function handleConfirmRemove() {
+    if (!pendingRemoval) return;
+    const launcher = pendingRemoval;
+
     try {
       await removeLauncher(launcher.id);
-      setLaunchers((current) =>
-        current.filter((entry) => entry.id !== launcher.id),
-      );
+      setLaunchers((current) => current.filter((entry) => entry.id !== launcher.id));
     } catch (err) {
       setError(toErrorMessage(err, "Failed to remove launcher."));
     }
@@ -44,6 +67,22 @@ function App() {
       await launchApp(launcher.exePath);
     } catch (err) {
       setError(toErrorMessage(err, "Failed to launch application."));
+    }
+  }
+
+  async function handleReorder(ids: string[]) {
+    const previous = launchers;
+    const reordered = ids
+      .map((id) => previous.find((launcher) => launcher.id === id))
+      .filter((launcher): launcher is LauncherEntry => Boolean(launcher));
+
+    setLaunchers(reordered);
+
+    try {
+      await reorderLaunchers(ids);
+    } catch (err) {
+      setLaunchers(previous);
+      setError(toErrorMessage(err, "Failed to reorder launchers."));
     }
   }
 
@@ -67,14 +106,30 @@ function App() {
       <LauncherGrid
         launchers={launchers}
         onLaunch={handleLaunch}
-        onRemove={handleRemove}
-        onAddClick={() => setIsFormOpen(true)}
+        onEdit={openEditForm}
+        onRemove={setPendingRemoval}
+        onReorder={handleReorder}
+        onAddClick={openAddForm}
       />
 
-      <AddLauncherForm
+      <LauncherFormDialog
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
-        onSubmit={handleAdd}
+        launcher={editingLauncher}
+        onSubmit={handleFormSubmit}
+      />
+
+      <ConfirmDialog
+        open={pendingRemoval !== null}
+        onOpenChange={(open) => !open && setPendingRemoval(null)}
+        title="Supprimer ce launcher ?"
+        description={
+          pendingRemoval
+            ? `"${pendingRemoval.name}" sera retiré de la liste. Cette action est irréversible.`
+            : ""
+        }
+        confirmLabel="Supprimer"
+        onConfirm={handleConfirmRemove}
       />
     </main>
   );

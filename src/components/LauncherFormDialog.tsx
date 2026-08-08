@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { FolderOpen } from "lucide-react"
 import {
   Dialog,
@@ -12,24 +12,34 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { pickExecutableFile } from "@/api/launchers"
+import type { LauncherEntry } from "@/types/launcher"
 
-type AddLauncherFormProps = {
+type LauncherFormDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  launcher?: LauncherEntry | null
   onSubmit: (name: string, exePath: string) => Promise<void>
 }
 
-export function AddLauncherForm({ open, onOpenChange, onSubmit }: AddLauncherFormProps) {
+export function LauncherFormDialog({
+  open,
+  onOpenChange,
+  launcher,
+  onSubmit,
+}: LauncherFormDialogProps) {
+  const isEditing = Boolean(launcher)
   const [name, setName] = useState("")
   const [exePath, setExePath] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  function reset() {
-    setName("")
-    setExePath("")
-    setError(null)
-  }
+  useEffect(() => {
+    if (open) {
+      setName(launcher?.name ?? "")
+      setExePath(launcher?.exePath ?? "")
+      setError(null)
+    }
+  }, [open, launcher])
 
   async function handleBrowse() {
     const picked = await pickExecutableFile()
@@ -45,10 +55,9 @@ export function AddLauncherForm({ open, onOpenChange, onSubmit }: AddLauncherFor
 
     try {
       await onSubmit(name.trim(), exePath.trim())
-      reset()
       onOpenChange(false)
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to add launcher.")
+      setError(typeof err === "string" ? err : "Une erreur est survenue.")
     } finally {
       setIsSubmitting(false)
     }
@@ -58,9 +67,11 @@ export function AddLauncherForm({ open, onOpenChange, onSubmit }: AddLauncherFor
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Ajouter un launcher</DialogTitle>
+          <DialogTitle>{isEditing ? "Modifier le launcher" : "Ajouter un launcher"}</DialogTitle>
           <DialogDescription>
-            Donne-lui un nom et indique son exécutable.
+            {isEditing
+              ? "Mets à jour son nom ou son exécutable."
+              : "Donne-lui un nom et indique son exécutable."}
           </DialogDescription>
         </DialogHeader>
 
@@ -98,7 +109,7 @@ export function AddLauncherForm({ open, onOpenChange, onSubmit }: AddLauncherFor
               Annuler
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Ajout..." : "Ajouter"}
+              {isSubmitting ? "Enregistrement..." : isEditing ? "Enregistrer" : "Ajouter"}
             </Button>
           </DialogFooter>
         </form>
