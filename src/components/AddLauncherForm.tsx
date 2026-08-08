@@ -16,16 +16,19 @@ import { pickExecutableFile } from "@/api/launchers"
 type AddLauncherFormProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (name: string, exePath: string) => void
+  onSubmit: (name: string, exePath: string) => Promise<void>
 }
 
 export function AddLauncherForm({ open, onOpenChange, onSubmit }: AddLauncherFormProps) {
   const [name, setName] = useState("")
   const [exePath, setExePath] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   function reset() {
     setName("")
     setExePath("")
+    setError(null)
   }
 
   async function handleBrowse() {
@@ -33,13 +36,22 @@ export function AddLauncherForm({ open, onOpenChange, onSubmit }: AddLauncherFor
     if (picked) setExePath(picked)
   }
 
-  function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     if (!name.trim() || !exePath.trim()) return
 
-    onSubmit(name.trim(), exePath.trim())
-    reset()
-    onOpenChange(false)
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      await onSubmit(name.trim(), exePath.trim())
+      reset()
+      onOpenChange(false)
+    } catch (err) {
+      setError(typeof err === "string" ? err : "Failed to add launcher.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -79,11 +91,15 @@ export function AddLauncherForm({ open, onOpenChange, onSubmit }: AddLauncherFor
             </div>
           </div>
 
+          {error && <p className="text-sm text-destructive">{error}</p>}
+
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Annuler
             </Button>
-            <Button type="submit">Ajouter</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Ajout..." : "Ajouter"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

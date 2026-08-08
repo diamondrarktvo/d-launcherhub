@@ -2,9 +2,15 @@
 
 A minimal desktop app launcher built with **Tauri**, **React**, and **TypeScript**. Add your favorite executables once, then launch them from a single, clean grid — no more hunting through folders or desktop icons.
 
+## Why
+
+Gamers tend to accumulate a pile of platform launchers over the years — Steam, Epic Games, EA App, Ubisoft Connect, GOG Galaxy, Battle.net, Xbox App, Riot Client, and more, on top of standalone `.exe` games. With so many of them scattered across the Start menu, desktop, and taskbar, it's easy to forget which launcher a given game actually lives in, or even forget that a launcher is installed at all.
+
+The Launcher solves that by giving you **one single place** to register and open all of them. Add each launcher (or any executable) once, and from then on you launch everything from the same clean grid — no more hunting, no more "wait, which launcher was that game on again?".
+
 ## Features
 
-- **Add any executable** — pick a file through the native file picker, give it a name, done
+- **Add any executable** — pick a file through the native file picker, give it a name, done. Works for game launchers (Steam, Epic, EA App, etc.) as well as any other app or `.exe`
 - **One-click launch** — start any registered app straight from the grid
 - **Remove entries** you no longer need
 - **Local persistence** — your launcher list is saved to disk automatically, no account or cloud required

@@ -1,6 +1,6 @@
 use crate::models::LauncherEntry;
 use crate::storage;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 use uuid::Uuid;
@@ -27,6 +27,10 @@ pub fn add_launcher(
     exe_path: String,
     icon_path: Option<String>,
 ) -> Result<LauncherEntry, String> {
+    if !Path::new(&exe_path).is_file() {
+        return Err(format!("\"{}\" n'existe pas ou n'est pas un fichier.", exe_path));
+    }
+
     let file_path = launchers_file_path(&app);
     let mut launchers = storage::load_launchers(&file_path);
 
