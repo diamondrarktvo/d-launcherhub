@@ -1,29 +1,36 @@
-import { useEffect, useState } from "react"
-import type { LauncherEntry } from "@/types/launcher"
-import { listLaunchers, addLauncher, removeLauncher, launchApp } from "@/api/launchers"
-import { LauncherGrid } from "@/components/LauncherGrid"
-import { AddLauncherForm } from "@/components/AddLauncherForm"
+import { useEffect, useState } from "react";
+import type { LauncherEntry } from "@/types/launcher";
+import {
+  listLaunchers,
+  addLauncher,
+  removeLauncher,
+  launchApp,
+} from "@/api/launchers";
+import { LauncherGrid } from "@/components/LauncherGrid";
+import { AddLauncherForm } from "@/components/AddLauncherForm";
 
 function App() {
-  const [launchers, setLaunchers] = useState<LauncherEntry[]>([])
-  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [launchers, setLaunchers] = useState<LauncherEntry[]>([]);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   useEffect(() => {
-    listLaunchers().then(setLaunchers)
-  }, [])
+    listLaunchers().then(setLaunchers);
+  }, []);
 
   async function handleAdd(name: string, exePath: string) {
-    const created = await addLauncher(name, exePath)
-    setLaunchers((current) => [...current, created])
+    const created = await addLauncher(name, exePath);
+    setLaunchers((current) => [...current, created]);
   }
 
   async function handleRemove(launcher: LauncherEntry) {
-    await removeLauncher(launcher.id)
-    setLaunchers((current) => current.filter((entry) => entry.id !== launcher.id))
+    await removeLauncher(launcher.id);
+    setLaunchers((current) =>
+      current.filter((entry) => entry.id !== launcher.id),
+    );
   }
 
   function handleLaunch(launcher: LauncherEntry) {
-    launchApp(launcher.exePath)
+    launchApp(launcher.exePath);
   }
 
   return (
@@ -37,9 +44,13 @@ function App() {
         onAddClick={() => setIsFormOpen(true)}
       />
 
-      <AddLauncherForm open={isFormOpen} onOpenChange={setIsFormOpen} onSubmit={handleAdd} />
+      <AddLauncherForm
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        onSubmit={handleAdd}
+      />
     </main>
-  )
+  );
 }
 
-export default App
+export default App;
