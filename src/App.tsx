@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import type { LauncherEntry } from "@/types/launcher";
 import {
@@ -9,9 +9,15 @@ import {
   reorderLaunchers,
   launchApp,
 } from "@/api/launchers";
+import { Header } from "@/components/Header";
+import { EmptyState } from "@/components/EmptyState";
 import { LauncherGrid } from "@/components/LauncherGrid";
 import { LauncherFormDialog } from "@/components/LauncherFormDialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+
+type ViewMode = "grid" | "list";
+
+const VIEW_MODE_STORAGE_KEY = "the-launcher:view-mode";
 
 function toErrorMessage(err: unknown, fallback: string) {
   return typeof err === "string" ? err : fallback;
@@ -23,10 +29,25 @@ function App() {
   const [editingLauncher, setEditingLauncher] = useState<LauncherEntry | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<LauncherEntry | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const stored = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+    return stored === "list" ? "list" : "grid";
+  });
 
   useEffect(() => {
     listLaunchers().then(setLaunchers);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
+  }, [viewMode]);
+
+  const filteredLaunchers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return launchers;
+    return launchers.filter((launcher) => launcher.name.toLowerCase().includes(query));
+  }, [launchers, searchQuery]);
 
   function openAddForm() {
     setEditingLauncher(null);
@@ -88,7 +109,13 @@ function App() {
 
   return (
     <main className="min-h-screen p-8">
-      <h1 className="mb-6 text-xl font-semibold">The Launcher</h1>
+      <Header
+        count={launchers.length}
+        search={searchQuery}
+        onSearchChange={setSearchQuery}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+      />
 
       {error && (
         <div className="mb-6 flex items-center justify-between gap-4 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm text-destructive">
@@ -103,14 +130,22 @@ function App() {
         </div>
       )}
 
-      <LauncherGrid
-        launchers={launchers}
-        onLaunch={handleLaunch}
-        onEdit={openEditForm}
-        onRemove={setPendingRemoval}
-        onReorder={handleReorder}
-        onAddClick={openAddForm}
-      />
+      {launchers.length === 0 ? (
+        <EmptyState onAddClick={openAddForm} />
+      ) : (
+        <LauncherGrid
+          launchers={filteredLaunchers}
+          viewMode={viewMode}
+          isSearching={searchQuery.trim().length > 0}
+          searchQuery={searchQuery}
+          onClearSearch={() => setSearchQuery("")}
+          onLaunch={handleLaunch}
+          onEdit={openEditForm}
+          onRemove={setPendingRemoval}
+          onReorder={handleReorder}
+          onAddClick={openAddForm}
+        />
+      )}
 
       <LauncherFormDialog
         open={isFormOpen}

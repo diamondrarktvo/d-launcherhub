@@ -5,32 +5,32 @@
 @import "@fontsource/inter/700.css";
 
 :root {
-  --background: 222 47% 8%;
+  --background: 224 50% 5%;
   --foreground: 210 40% 96%;
 
-  --card: 222 45% 11%;
+  --card: 222 40% 9%;
   --card-foreground: 210 40% 96%;
 
-  --popover: 222 45% 11%;
+  --popover: 222 40% 9%;
   --popover-foreground: 210 40% 96%;
 
   --primary: 217 91% 60%;
   --primary-foreground: 210 40% 98%;
 
-  --secondary: 222 30% 18%;
+  --secondary: 222 28% 15%;
   --secondary-foreground: 210 40% 96%;
 
-  --muted: 222 30% 16%;
+  --muted: 222 28% 13%;
   --muted-foreground: 215 20% 65%;
 
-  --accent: 222 30% 18%;
+  --accent: 222 28% 16%;
   --accent-foreground: 210 40% 96%;
 
   --destructive: 0 72% 51%;
   --destructive-foreground: 210 40% 98%;
 
-  --border: 222 30% 20%;
-  --input: 222 30% 20%;
+  --border: 222 24% 17%;
+  --input: 222 24% 17%;
   --ring: 217 91% 60%;
 
   --radius: 0.75rem;

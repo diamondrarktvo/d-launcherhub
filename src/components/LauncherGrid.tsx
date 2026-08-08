@@ -7,12 +7,24 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core"
-import { SortableContext, rectSortingStrategy, arrayMove } from "@dnd-kit/sortable"
+import {
+  SortableContext,
+  rectSortingStrategy,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable"
 import type { LauncherEntry } from "@/types/launcher"
 import { LauncherTile } from "@/components/LauncherTile"
+import { Button } from "@/components/ui/button"
+
+type ViewMode = "grid" | "list"
 
 type LauncherGridProps = {
   launchers: LauncherEntry[]
+  viewMode: ViewMode
+  isSearching: boolean
+  searchQuery: string
+  onClearSearch: () => void
   onLaunch: (launcher: LauncherEntry) => void
   onEdit: (launcher: LauncherEntry) => void
   onRemove: (launcher: LauncherEntry) => void
@@ -22,6 +34,10 @@ type LauncherGridProps = {
 
 export function LauncherGrid({
   launchers,
+  viewMode,
+  isSearching,
+  searchQuery,
+  onClearSearch,
   onLaunch,
   onEdit,
   onRemove,
@@ -44,33 +60,77 @@ export function LauncherGrid({
     onReorder(reordered.map((launcher) => launcher.id))
   }
 
+  if (launchers.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border py-12 text-center">
+        <p className="text-sm text-muted-foreground">
+          Aucun résultat pour « {searchQuery} »
+        </p>
+        <Button type="button" variant="ghost" size="sm" onClick={onClearSearch}>
+          Réinitialiser la recherche
+        </Button>
+      </div>
+    )
+  }
+
+  const containerClassName =
+    viewMode === "grid"
+      ? "grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-4"
+      : "flex flex-col gap-2"
+
+  const tiles = launchers.map((launcher) => (
+    <LauncherTile
+      key={launcher.id}
+      launcher={launcher}
+      variant={viewMode}
+      onLaunch={onLaunch}
+      onEdit={onEdit}
+      onRemove={onRemove}
+    />
+  ))
+
+  const addButton =
+    viewMode === "grid" ? (
+      <button
+        onClick={onAddClick}
+        className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border p-5 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+      >
+        <div className="flex h-20 w-20 items-center justify-center rounded-md bg-secondary">
+          <Plus className="h-9 w-9" />
+        </div>
+        <span className="text-sm font-medium">Ajouter</span>
+      </button>
+    ) : (
+      <button
+        onClick={onAddClick}
+        className="flex items-center gap-3 rounded-lg border border-dashed border-border px-3 py-2 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+      >
+        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-secondary">
+          <Plus className="h-5 w-5" />
+        </div>
+        <span className="text-sm font-medium">Ajouter un launcher</span>
+      </button>
+    )
+
+  if (isSearching) {
+    return (
+      <div className={containerClassName}>
+        {tiles}
+        {addButton}
+      </div>
+    )
+  }
+
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(6rem,1fr))] gap-4">
+      <div className={containerClassName}>
         <SortableContext
           items={launchers.map((launcher) => launcher.id)}
-          strategy={rectSortingStrategy}
+          strategy={viewMode === "grid" ? rectSortingStrategy : verticalListSortingStrategy}
         >
-          {launchers.map((launcher) => (
-            <LauncherTile
-              key={launcher.id}
-              launcher={launcher}
-              onLaunch={onLaunch}
-              onEdit={onEdit}
-              onRemove={onRemove}
-            />
-          ))}
+          {tiles}
         </SortableContext>
-
-        <button
-          onClick={onAddClick}
-          className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border p-4 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-        >
-          <div className="flex h-16 w-16 items-center justify-center rounded-md bg-secondary">
-            <Plus className="h-8 w-8" />
-          </div>
-          <span className="text-sm font-medium">Ajouter</span>
-        </button>
+        {addButton}
       </div>
     </DndContext>
   )
