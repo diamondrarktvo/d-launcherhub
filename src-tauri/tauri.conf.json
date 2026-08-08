@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "d-launchhub",
+  "productName": "The Launcher",
   "version": "1.0.0",
-  "identifier": "com.dama.dlaunchhub",
+  "identifier": "com.dama.thelauncher",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "d-launchhub",
+        "title": "The Launcher",
         "width": 800,
         "height": 600
       }
