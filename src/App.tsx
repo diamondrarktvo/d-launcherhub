@@ -35,7 +35,7 @@ function App() {
 
   return (
     <main className="min-h-screen p-8">
-      <h1 className="mb-6 text-xl font-semibold">LaunchHub</h1>
+      <h1 className="mb-6 text-xl font-semibold">The Launcher</h1>
 
       <LauncherGrid
         launchers={launchers}
